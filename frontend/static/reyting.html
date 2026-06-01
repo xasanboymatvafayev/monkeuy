@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TezYoz — Reyting & Battle</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto Mono', monospace;
+      background: #1a1b1e;
+      color: #e0e2f0;
+      min-height: 100vh;
+    }
+
+    /* ── ISM MODAL ── */
+    #nameModal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    #nameModal.hidden { display: none; }
+    .modal-box {
+      background: #25262b;
+      border: 1px solid #3a3d4a;
+      border-radius: 16px;
+      padding: 40px;
+      width: 90%; max-width: 420px;
+      text-align: center;
+    }
+    .modal-box h2 { color: #4f9cf9; font-size: 1.5rem; margin-bottom: 8px; }
+    .modal-box p { color: #888; margin-bottom: 24px; font-size: 0.9rem; }
+    .modal-box input {
+      width: 100%; padding: 12px 16px;
+      background: #1a1b1e; border: 2px solid #3a3d4a;
+      border-radius: 8px; color: #e0e2f0;
+      font-size: 1.1rem; font-family: inherit;
+      outline: none; transition: border-color 0.2s;
+    }
+    .modal-box input:focus { border-color: #4f9cf9; }
+    .btn-primary {
+      margin-top: 16px; width: 100%;
+      padding: 12px; background: #4f9cf9;
+      border: none; border-radius: 8px;
+      color: #1a1b1e; font-size: 1rem;
+      font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #3a8ce8; }
+
+    /* ── HEADER ── */
+    header {
+      padding: 20px 40px;
+      display: flex; align-items: center; gap: 16px;
+      border-bottom: 1px solid #25262b;
+    }
+    header h1 { color: #4f9cf9; font-size: 1.4rem; }
+    header span { color: #888; font-size: 0.9rem; }
+    .user-badge {
+      margin-left: auto;
+      background: #25262b;
+      padding: 6px 16px;
+      border-radius: 20px;
+      color: #4f9cf9;
+      font-size: 0.9rem;
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex; gap: 8px;
+      padding: 24px 40px 0;
+    }
+    .tab {
+      padding: 10px 24px;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      background: #25262b;
+      color: #888;
+      border: 1px solid #3a3d4a;
+      border-bottom: none;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .tab.active { background: #2e3040; color: #4f9cf9; border-color: #4f9cf9; }
+
+    /* ── CONTENT ── */
+    .content {
+      padding: 0 40px 40px;
+    }
+    .panel {
+      display: none;
+      background: #25262b;
+      border: 1px solid #3a3d4a;
+      border-radius: 0 12px 12px 12px;
+      padding: 28px;
+    }
+    .panel.active { display: block; }
+
+    /* ── LEADERBOARD ── */
+    .boards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 700px) { .boards-grid { grid-template-columns: 1fr; } }
+    .board-title {
+      font-size: 1rem; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .board-title .icon { font-size: 1.2rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { color: #888; text-align: left; padding: 8px 12px; border-bottom: 1px solid #3a3d4a; }
+    td { padding: 10px 12px; border-bottom: 1px solid #2a2b30; }
+    tr:hover td { background: #2e3040; }
+    .rank-1 { color: #ffd700; font-weight: 700; }
+    .rank-2 { color: #c0c0c0; font-weight: 700; }
+    .rank-3 { color: #cd7f32; font-weight: 700; }
+    .wpm-badge {
+      background: #1e3a5f; color: #4f9cf9;
+      padding: 2px 10px; border-radius: 12px;
+      font-weight: 700;
+    }
+    .acc-badge {
+      background: #1e4a2e; color: #4caf50;
+      padding: 2px 10px; border-radius: 12px;
+      font-weight: 700;
+    }
+    .me { background: #1e2a3a !important; }
+
+    /* ── BATTLE ── */
+    .battle-section { max-width: 600px; margin: 0 auto; }
+    .battle-create, .battle-join {
+      background: #1a1b1e;
+      border: 1px solid #3a3d4a;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .battle-create h3, .battle-join h3 {
+      color: #e0e2f0; margin-bottom: 12px;
+      font-size: 1rem;
+    }
+    .room-link {
+      background: #1a1b1e;
+      border: 1px dashed #4f9cf9;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #4f9cf9;
+      font-size: 0.85rem;
+      word-break: break-all;
+      cursor: pointer;
+      margin: 12px 0;
+    }
+    .room-link:hover { background: #1e2a3a; }
+    .join-row { display: flex; gap: 8px; }
+    .join-row input {
+      flex: 1; padding: 10px 14px;
+      background: #1a1b1e; border: 2px solid #3a3d4a;
+      border-radius: 8px; color: #e0e2f0;
+      font-family: inherit; font-size: 1rem;
+      outline: none; text-transform: uppercase;
+    }
+    .join-row input:focus { border-color: #4f9cf9; }
+    .btn-battle {
+      padding: 10px 20px;
+      background: #4f9cf9; border: none;
+      border-radius: 8px; color: #1a1b1e;
+      font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .btn-battle:hover { background: #3a8ce8; }
+    .btn-danger {
+      background: #e05c6a; color: white;
+    }
+    .btn-danger:hover { background: #c94a58; }
+
+    /* ── BATTLE ARENA ── */
+    #battleArena { display: none; }
+    #battleArena.active { display: block; }
+    .arena-header {
+      display: flex; justify-content: space-between;
+      margin-bottom: 20px; font-size: 0.9rem; color: #888;
+    }
+    .player-bar {
+      margin-bottom: 16px;
+      background: #1a1b1e;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #3a3d4a;
+    }
+    .player-bar.me-bar { border-color: #4f9cf9; }
+    .player-bar.opponent-bar { border-color: #e05c6a; }
+    .player-name { font-size: 0.85rem; margin-bottom: 8px; }
+    .progress-track {
+      background: #2a2b30;
+      border-radius: 8px;
+      height: 12px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .me-bar .progress-fill { background: #4f9cf9; }
+    .opponent-bar .progress-fill { background: #e05c6a; }
+    .wpm-live { font-size: 0.8rem; color: #888; margin-top: 4px; }
+
+    .text-box {
+      background: #1a1b1e;
+      border: 1px solid #3a3d4a;
+      border-radius: 12px;
+      padding: 20px;
+      font-size: 1.1rem;
+      line-height: 1.8;
+      margin: 16px 0;
+      letter-spacing: 0.05em;
+    }
+    .char-correct { color: #4caf50; }
+    .char-wrong { color: #e05c6a; background: #3a1a1e; }
+    .char-current { border-bottom: 2px solid #4f9cf9; }
+    .char-pending { color: #555; }
+
+    .battle-input {
+      width: 100%;
+      padding: 14px 16px;
+      background: #1a1b1e;
+      border: 2px solid #3a3d4a;
+      border-radius: 10px;
+      color: #e0e2f0;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .battle-input:focus { border-color: #4f9cf9; }
+
+    .countdown-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+      font-size: 8rem;
+      color: #4f9cf9;
+      font-weight: 900;
+    }
+    .countdown-overlay.hidden { display: none; }
+
+    .result-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    .result-overlay.hidden { display: none; }
+    .result-box {
+      background: #25262b;
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      min-width: 320px;
+    }
+    .result-box h2 { font-size: 2rem; margin-bottom: 8px; }
+    .result-box .win { color: #4caf50; }
+    .result-box .lose { color: #e05c6a; }
+    .result-box .draw { color: #4f9cf9; }
+    .result-stats { margin: 20px 0; color: #888; }
+    .result-stats span { color: #e0e2f0; font-weight: 700; }
+
+    .waiting { color: #888; text-align: center; padding: 20px; }
+    .waiting .dot { animation: blink 1.2s infinite; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    .copied { color: #4caf50; font-size: 0.8rem; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- ISM MODAL -->
+<div id="nameModal">
+  <div class="modal-box">
+    <h2>🐆 TezYoz ga xush kelibsiz!</h2>
+    <p>Reyting va battle uchun ismingizni kiriting</p>
+    <input type="text" id="nameInput" placeholder="Ismingiz..." maxlength="20" />
+    <button class="btn-primary" onclick="saveName()">Davom etish →</button>
+  </div>
+</div>
+
+<!-- COUNTDOWN -->
+<div id="countdown" class="countdown-overlay hidden">3</div>
+
+<!-- BATTLE RESULT -->
+<div id="resultOverlay" class="result-overlay hidden">
+  <div class="result-box">
+    <h2 id="resultTitle"></h2>
+    <div class="result-stats" id="resultStats"></div>
+    <button class="btn-primary" onclick="closeResult()">Yopish</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <h1>⚡ TezYoz</h1>
+  <div class="user-badge" id="userBadge">—</div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('reyting')">🏆 Reyting</button>
+  <button class="tab" onclick="showTab('battle')">⚔️ Battle</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- REYTING PANEL -->
+  <div id="tab-reyting" class="panel active">
+    <div class="boards-grid">
+      <div>
+        <div class="board-title"><span class="icon">⚡</span> Eng tez yozuvchilar</div>
+        <table>
+          <thead><tr><th>#</th><th>Ism</th><th>WPM</th><th>Aniqlik</th></tr></thead>
+          <tbody id="speedBoard"><tr><td colspan="4" class="waiting">Yuklanmoqda<span class="dot">...</span></td></tr></tbody>
+        </table>
+      </div>
+      <div>
+        <div class="board-title"><span class="icon">🎯</span> Eng xatosiz yozuvchilar</div>
+        <table>
+          <thead><tr><th>#</th><th>Ism</th><th>Aniqlik</th><th>WPM</th></tr></thead>
+          <tbody id="accuracyBoard"><tr><td colspan="4" class="waiting">Yuklanmoqda<span class="dot">...</span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATTLE PANEL -->
+  <div id="tab-battle" class="panel">
+    <div class="battle-section">
+
+      <!-- SETUP -->
+      <div id="battleSetup">
+        <div class="battle-create">
+          <h3>⚔️ Yangi battle boshlash</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:12px">Xona yarating va havolani do'stingizga yuboring</p>
+          <button class="btn-battle" onclick="createBattle()">Xona yaratish</button>
+          <div id="createdRoom" style="display:none">
+            <div class="room-link" id="roomLink" onclick="copyLink()">—</div>
+            <div id="copiedMsg" class="copied" style="display:none">✓ Nusxa olindi!</div>
+            <div class="waiting" id="waitingGuest">Raqib kutilmoqda<span class="dot">...</span></div>
+          </div>
+        </div>
+
+        <div class="battle-join">
+          <h3>🔗 Xonaga qo'shilish</h3>
+          <div class="join-row">
+            <input type="text" id="roomCodeInput" placeholder="XONA KODI" maxlength="6" />
+            <button class="btn-battle" onclick="joinBattle()">Qo'shilish</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARENA -->
+      <div id="battleArena">
+        <div class="arena-header">
+          <span id="arenaTitle">Battle</span>
+          <button class="btn-battle btn-danger" onclick="leaveBattle()">Chiqish</button>
+        </div>
+
+        <div class="player-bar me-bar">
+          <div class="player-name" id="myName">Siz</div>
+          <div class="progress-track"><div class="progress-fill" id="myProgress"></div></div>
+          <div class="wpm-live" id="myWpmLive">0 wpm</div>
+        </div>
+
+        <div class="player-bar opponent-bar">
+          <div class="player-name" id="opponentName">Raqib</div>
+          <div class="progress-track"><div class="progress-fill" id="opponentProgress"></div></div>
+          <div class="wpm-live" id="opponentWpmLive">0 wpm</div>
+        </div>
+
+        <div class="text-box" id="battleText"></div>
+        <input type="text" class="battle-input" id="battleInput"
+          placeholder="Bu yerga yozing..." autocomplete="off" autocorrect="off"
+          spellcheck="false" disabled />
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const BACKEND = window.TEZYOZ_BACKEND || "https://tezyoz.up.railway.app";
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let userId = localStorage.getItem("tezyoz_uid");
+let userName = localStorage.getItem("tezyoz_name");
+let socket = null;
+let battleRole = null;
+let battleRoomId = null;
+let battleText = "";
+let battleStartTime = null;
+let battleFinished = false;
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.onload = async () => {
+  if (!userId) {
+    userId = "tz_" + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem("tezyoz_uid", userId);
+  }
+
+  if (!userName) {
+    document.getElementById("nameModal").classList.remove("hidden");
+  } else {
+    initApp();
+  }
+
+  // URL da room kodi bo'lsa
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomFromUrl = urlParams.get("room");
+  if (roomFromUrl) {
+    showTab("battle");
+    document.getElementById("roomCodeInput").value = roomFromUrl.toUpperCase();
+  }
+};
+
+function initApp() {
+  document.getElementById("userBadge").textContent = "👤 " + userName;
+  loadLeaderboards();
+}
+
+// ─── ISM ─────────────────────────────────────────────────────────────────────
+async function saveName() {
+  const input = document.getElementById("nameInput");
+  const name = input.value.trim();
+  if (name.length < 2) { input.style.borderColor = "#e05c6a"; return; }
+
+  userName = name;
+  localStorage.setItem("tezyoz_name", name);
+
+  try {
+    await fetch(BACKEND + "/tezyoz/user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, name }),
+    });
+  } catch(e) {}
+
+  document.getElementById("nameModal").classList.add("hidden");
+  initApp();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const inp = document.getElementById("nameInput");
+  if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") saveName(); });
+});
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(tab) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("tab-" + tab).classList.add("active");
+  document.querySelectorAll(".tab")[tab === "reyting" ? 0 : 1].classList.add("active");
+  if (tab === "reyting") loadLeaderboards();
+}
+
+// ─── LEADERBOARD ─────────────────────────────────────────────────────────────
+async function loadLeaderboards() {
+  try {
+    const [speed, accuracy] = await Promise.all([
+      fetch(BACKEND + "/tezyoz/leaderboard/speed").then(r => r.json()),
+      fetch(BACKEND + "/tezyoz/leaderboard/accuracy").then(r => r.json()),
+    ]);
+    renderBoard("speedBoard", speed, "wpm");
+    renderBoard("accuracyBoard", accuracy, "accuracy");
+  } catch(e) {
+    document.getElementById("speedBoard").innerHTML = '<tr><td colspan="4" style="color:#e05c6a;padding:12px">Xato yuz berdi</td></tr>';
+    document.getElementById("accuracyBoard").innerHTML = '<tr><td colspan="4" style="color:#e05c6a;padding:12px">Xato yuz berdi</td></tr>';
+  }
+}
+
+function renderBoard(id, data, mainStat) {
+  const tbody = document.getElementById(id);
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="waiting">Hali natija yo\'q</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map((row, i) => {
+    const rankClass = i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "";
+    const isMe = row.userId === userId ? "me" : "";
+    const main = mainStat === "wpm"
+      ? `<span class="wpm-badge">${row.wpm} wpm</span>`
+      : `<span class="acc-badge">${row.accuracy}%</span>`;
+    const secondary = mainStat === "wpm"
+      ? `${row.accuracy}%`
+      : `${row.wpm} wpm`;
+    return `<tr class="${isMe}">
+      <td class="${rankClass}">${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
+      <td>${row.name}${row.userId === userId ? " <small style='color:#4f9cf9'>(Sen)</small>" : ""}</td>
+      <td>${main}</td>
+      <td>${secondary}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ─── BATTLE ──────────────────────────────────────────────────────────────────
+function connectSocket() {
+  if (socket) return;
+  socket = io(BACKEND, { transports: ["websocket"] });
+}
+
+async function createBattle() {
+  if (!userName) { alert("Avval ismingizni kiriting!"); return; }
+  try {
+    const res = await fetch(BACKEND + "/tezyoz/battle/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, name: userName }),
+    });
+    const data = await res.json();
+    battleRoomId = data.roomId;
+    battleRole = "host";
+
+    const link = window.location.origin + window.location.pathname + "?room=" + data.roomId;
+    document.getElementById("roomLink").textContent = link;
+    document.getElementById("createdRoom").style.display = "block";
+
+    connectSocket();
+    socket.emit("joinRoom", { roomId: battleRoomId, role: "host" });
+    setupSocketListeners();
+  } catch(e) { alert("Xato: " + e.message); }
+}
+
+async function joinBattle() {
+  if (!userName) { alert("Avval ismingizni kiriting!"); return; }
+  const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+  if (!code) return;
+
+  try {
+    const res = await fetch(BACKEND + "/tezyoz/battle/" + code + "/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, name: userName }),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert(data.message || "Xato"); return; }
+
+    battleRoomId = code;
+    battleRole = "guest";
+    battleText = data.text;
+
+    connectSocket();
+    socket.emit("joinRoom", { roomId: code, role: "guest" });
+    setupSocketListeners();
+    showArena();
+  } catch(e) { alert("Xato: " + e.message); }
+}
+
+function setupSocketListeners() {
+  socket.off("battleStart");
+  socket.off("opponentProgress");
+  socket.off("battleEnd");
+  socket.off("opponentLeft");
+
+  socket.on("battleStart", ({ countdown }) => {
+    if (battleRole === "host") {
+      // Host ham arenda ko'rinishiga o'tsin
+      showArena();
+    }
+    startCountdown(countdown);
+  });
+
+  socket.on("opponentProgress", ({ progress, wpm }) => {
+    document.getElementById("opponentProgress").style.width = progress + "%";
+    document.getElementById("opponentWpmLive").textContent = wpm + " wpm";
+  });
+
+  socket.on("battleEnd", ({ winner, wpm, accuracy }) => {
+    if (!battleFinished) {
+      battleFinished = true;
+      showResult(winner);
+    }
+  });
+
+  socket.on("opponentLeft", () => {
+    alert("Raqib o'yindan chiqdi!");
+    leaveBattle();
+  });
+}
+
+async function showArena() {
+  // Matn olish
+  if (!battleText) {
+    const res = await fetch(BACKEND + "/tezyoz/battle/" + battleRoomId);
+    const data = await res.json();
+    battleText = data.text;
+  }
+
+  document.getElementById("battleSetup").style.display = "none";
+  document.getElementById("battleArena").classList.add("active");
+  document.getElementById("myName").textContent = "⚡ " + userName + " (Siz)";
+  document.getElementById("opponentName").textContent = "🔴 Raqib";
+
+  renderBattleText();
+}
+
+function renderBattleText(typed = "") {
+  const container = document.getElementById("battleText");
+  const chars = battleText.split("");
+  container.innerHTML = chars.map((ch, i) => {
+    let cls = "char-pending";
+    if (i < typed.length) cls = typed[i] === ch ? "char-correct" : "char-wrong";
+    else if (i === typed.length) cls = "char-current";
+    return `<span class="${cls}">${ch}</span>`;
+  }).join("");
+}
+
+function startCountdown(from) {
+  const el = document.getElementById("countdown");
+  el.classList.remove("hidden");
+  let n = from;
+  el.textContent = n;
+  const interval = setInterval(() => {
+    n--;
+    if (n <= 0) {
+      clearInterval(interval);
+      el.textContent = "GO!";
+      setTimeout(() => {
+        el.classList.add("hidden");
+        startBattle();
+      }, 600);
+    } else {
+      el.textContent = n;
+    }
+  }, 1000);
+}
+
+function startBattle() {
+  battleStartTime = Date.now();
+  battleFinished = false;
+  const input = document.getElementById("battleInput");
+  input.disabled = false;
+  input.focus();
+  input.value = "";
+
+  input.oninput = () => {
+    const typed = input.value;
+    renderBattleText(typed);
+
+    const progress = Math.round((typed.length / battleText.length) * 100);
+    const elapsed = (Date.now() - battleStartTime) / 60000;
+    const wpm = Math.round((typed.split(" ").length) / elapsed) || 0;
+
+    document.getElementById("myProgress").style.width = progress + "%";
+    document.getElementById("myWpmLive").textContent = wpm + " wpm";
+
+    socket.emit("progress", { roomId: battleRoomId, progress, wpm });
+
+    // Tugatish tekshiruvi
+    if (typed === battleText) {
+      input.disabled = true;
+      const accuracy = calcAccuracy(typed, battleText);
+      battleFinished = true;
+      socket.emit("finished", { roomId: battleRoomId, role: battleRole, wpm, accuracy });
+
+      // Natijani saqlash
+      fetch(BACKEND + "/tezyoz/result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, name: userName, wpm, accuracy }),
+      }).catch(() => {});
+    }
+  };
+}
+
+function calcAccuracy(typed, original) {
+  let correct = 0;
+  for (let i = 0; i < typed.length; i++) {
+    if (typed[i] === original[i]) correct++;
+  }
+  return Math.round((correct / original.length) * 100);
+}
+
+function showResult(winner) {
+  const overlay = document.getElementById("resultOverlay");
+  const title = document.getElementById("resultTitle");
+  const stats = document.getElementById("resultStats");
+
+  overlay.classList.remove("hidden");
+
+  if (winner === battleRole) {
+    title.innerHTML = '<span class="win">🏆 G\'OLDINGIZ!</span>';
+  } else {
+    title.innerHTML = '<span class="lose">💀 Yutqazdingiz</span>';
+  }
+  stats.innerHTML = `Battle tugadi`;
+}
+
+function closeResult() {
+  document.getElementById("resultOverlay").classList.add("hidden");
+  leaveBattle();
+  loadLeaderboards();
+}
+
+function leaveBattle() {
+  if (socket) { socket.disconnect(); socket = null; }
+  battleRoomId = null;
+  battleRole = null;
+  battleText = "";
+  battleStartTime = null;
+  battleFinished = false;
+
+  document.getElementById("battleArena").classList.remove("active");
+  document.getElementById("battleSetup").style.display = "block";
+  document.getElementById("createdRoom").style.display = "none";
+  document.getElementById("battleInput").value = "";
+  document.getElementById("battleInput").disabled = true;
+  document.getElementById("myProgress").style.width = "0%";
+  document.getElementById("opponentProgress").style.width = "0%";
+  document.getElementById("roomCodeInput").value = "";
+  window.history.pushState({}, "", window.location.pathname);
+}
+
+function copyLink() {
+  const link = document.getElementById("roomLink").textContent;
+  navigator.clipboard.writeText(link).then(() => {
+    const msg = document.getElementById("copiedMsg");
+    msg.style.display = "block";
+    setTimeout(() => msg.style.display = "none", 2000);
+  });
+}
+</script>
+</body>
+</html>

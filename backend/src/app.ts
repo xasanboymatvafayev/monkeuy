@@ -12,6 +12,7 @@ import { compatibilityCheckMiddleware } from "./middlewares/compatibilityCheck";
 import { COMPATIBILITY_CHECK_HEADER } from "@monkeytype/contracts";
 import { createETagGenerator } from "./utils/etag";
 import { v4RequestBody } from "./middlewares/utility";
+import { tezyozRouter } from "./api/routes/tezyoz";
 
 const etagFn = createETagGenerator({ weak: true });
 
@@ -20,7 +21,10 @@ function buildApp(): express.Application {
 
   app.use(urlencoded({ extended: true }));
   app.use(json());
-  app.use(cors({ exposedHeaders: [COMPATIBILITY_CHECK_HEADER] }));
+  app.use(cors({
+    origin: "*",
+    exposedHeaders: [COMPATIBILITY_CHECK_HEADER],
+  }));
   app.use(helmet());
 
   app.set("trust proxy", 1);
@@ -33,6 +37,9 @@ function buildApp(): express.Application {
   app.use(v4RequestBody);
 
   app.set("etag", etagFn);
+
+  // TezYoz API routes
+  app.use("/tezyoz", tezyozRouter);
 
   addApiRoutes(app);
 

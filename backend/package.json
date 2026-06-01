@@ -54,6 +54,7 @@
     "swagger-stats": "0.99.7",
     "ua-parser-js": "0.7.33",
     "uuid": "14.0.0",
+    "socket.io": "^4.7.2",
     "winston": "3.6.0",
     "zod": "3.23.8"
   },

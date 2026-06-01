@@ -27,7 +27,7 @@ export function Footer(): JSXElement {
         <div class="grid grid-cols-1 justify-items-start xs:grid-cols-2 sm:grid-cols-4 lg:flex">
           <Button
             variant="text"
-            text="contact"
+            text="aloqa"
             fa={{
               icon: "fa-envelope",
               fixedWidth: true,
@@ -36,7 +36,7 @@ export function Footer(): JSXElement {
           />
           <Button
             variant="text"
-            text="support"
+            text="qo'llab-quvvatlash"
             fa={{
               icon: "fa-donate",
               fixedWidth: true,
@@ -50,31 +50,11 @@ export function Footer(): JSXElement {
               icon: "fa-code",
               fixedWidth: true,
             }}
-            href="https://github.com/monkeytypegame/monkeytype"
+            href="https://github.com/xasanboymatvafayev/monkeuy"
           />
           <Button
             variant="text"
-            text="discord"
-            fa={{
-              icon: "fa-discord",
-              variant: "brand",
-              fixedWidth: true,
-            }}
-            href="https://www.discord.gg/monkeytype"
-          />
-          <Button
-            variant="text"
-            text="twitter"
-            fa={{
-              icon: "fa-twitter",
-              variant: "brand",
-              fixedWidth: true,
-            }}
-            href="https://x.com/monkeytype"
-          />
-          <Button
-            variant="text"
-            text="terms"
+            text="shartlar"
             fa={{
               icon: "fa-file-contract",
               fixedWidth: true,
@@ -82,18 +62,9 @@ export function Footer(): JSXElement {
             href="/terms-of-service.html"
           />
           <Button
-            href="/security-policy.html"
-            variant="text"
-            text="security"
-            fa={{
-              icon: "fa-shield-alt",
-              fixedWidth: true,
-            }}
-          />
-          <Button
             href="/privacy-policy.html"
             variant="text"
-            text="privacy"
+            text="maxfiylik"
             fa={{
               icon: "fa-lock",
               fixedWidth: true,

@@ -85,7 +85,7 @@
     "oxlint-tsgolint": "0.22.1",
     "readline-sync": "1.4.10",
     "supertest": "7.1.4",
-    "testcontainers": "11.11.0",
+    "testcontainers": "12.2.1",
     "tsx": "4.21.0",
     "typescript": "6.0.2",
     "vitest": "4.1.0",
